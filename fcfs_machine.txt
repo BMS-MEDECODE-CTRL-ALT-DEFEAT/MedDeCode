@@ -1,0 +1,280 @@
+section .data
+    format db "%d%d%d", 0
+    error db "Unable to accomodate a process.", 0
+    prompt1 db "Enter PID,AT and BT of the Process 1.", 0
+    prompt2 db "Enter PID,AT and BT of Process %d.", 0
+
+section .text
+    global main
+    extern printf
+    extern scanf
+    extern malloc
+    extern exit
+
+main:
+    ; Allocate memory for firstProcess
+    push dword sizeof.node
+    call malloc
+    add esp, 4
+    mov dword [firstProcess], eax
+
+    ; Check if memory allocation was successful
+    cmp dword [firstProcess], 0
+    jne inputProcessData
+    push dword error
+    call printf
+    add esp, 4
+    push dword 0
+    call exit
+
+inputProcessData:
+    ; Print prompt1
+    push dword prompt1
+    call printf
+    add esp, 4
+
+    ; Read PID, AT, and BT of firstProcess
+    push dword format
+    lea eax, [firstProcess+4]
+    push eax
+    call scanf
+    add esp, 8
+
+    ; Set link of firstProcess to NULL
+    mov dword [firstProcess+12], 0
+
+    ; Set temp to firstProcess
+    mov eax, [firstProcess]
+    mov dword [temp], eax
+
+    ; Loop for i = 2 to num
+    mov dword [i], 2
+loop:
+    ; Allocate memory for newProcess
+    push dword sizeof.node
+    call malloc
+    add esp, 4
+    mov dword [newProcess], eax
+
+    ; Check if memory allocation was successful
+    cmp dword [newProcess], 0
+    jne inputProcessDataSuccess
+    push dword error
+    call printf
+    add esp, 4
+    push dword 0
+    call exit
+
+inputProcessDataSuccess:
+    ; Print prompt2
+    push dword prompt2
+    push dword [i]
+    call printf
+    add esp, 8
+
+    ; Read PID, AT, and BT of newProcess
+    push dword format
+    lea eax, [newProcess+4]
+    push eax
+    call scanf
+    add esp, 8
+
+    ; Set link of newProcess to NULL
+    mov dword [newProcess+12], 0
+
+    ; Set link of temp to newProcess
+    mov eax, [newProcess]
+    mov dword [temp+12], eax
+
+    ; Set temp to newProcess
+    mov eax, [newProcess]
+    mov dword [temp], eax
+
+    ; Increment i
+    inc dword [i]
+
+    ; Check if i <= num
+    cmp dword [i], [num]
+    jle loop
+
+    ; Return firstProcess
+    mov eax, [firstProcess]
+    ret
+
+section .data
+    struct_size equ 12 ; size of struct node in bytes
+
+section .text
+    global sortFCFS
+    extern malloc, free
+
+sortFCFS:
+    ; prologue
+    push ebp
+    mov ebp, esp
+
+    ; save registers
+    push ebx
+    push esi
+    push edi
+
+    ; initialize variables
+    mov dword [ebp-4], 0 ; status = 0
+    mov ebx, [ebp+8] ; list = head = parameter
+
+    ; loop
+    loop:
+        mov esi, ebx ; temp = head
+        mov dword [ebp-4], 0 ; status = 0
+
+        while_loop:
+            cmp esi, 0 ; while (temp != NULL)
+            je end_while_loop
+
+            mov edi, [esi+4] ; edi = temp->link
+
+            cmp edi, 0 ; if (temp->link != NULL)
+            je end_while_loop
+
+            mov eax, [esi] ; eax = temp->AT
+            cmp eax, [edi] ; if (temp->AT > temp->link->AT)
+            jle skip_swap
+
+            ; swap AT
+            mov edx, [edi] ; edx = temp->link->AT
+            mov [edi], eax ; temp->link->AT = temp->AT
+            mov [esi], edx ; temp->AT = temp->link->AT
+
+            ; swap PID
+            mov eax, [edi+8] ; eax = temp->link->PID
+            mov [edi+8], [esi+8] ; temp->link->PID = temp->PID
+            mov [esi+8], eax ; temp->PID = temp->link->PID
+
+            ; swap BT
+            mov eax, [edi+12] ; eax = temp->link->BT
+            mov [edi+12], [esi+12] ; temp->link->BT = temp->BT
+            mov [esi+12], eax ; temp->BT = temp->link->BT
+
+            ; set status = 1
+            mov dword [ebp-4], 1
+
+        skip_swap:
+            mov esi, edi ; temp = temp->link
+            jmp while_loop
+
+        end_while_loop:
+            cmp dword [ebp-4], 0 ; if (status == 0)
+            je end_loop
+
+            jmp loop
+
+    end_loop:
+        ; epilogue
+        pop edi
+        pop esi
+        pop ebx
+        mov esp, ebp
+        pop ebp
+
+        ; return head
+        mov eax, ebx
+        ret
+
+section .data
+    CT db "CT", 9
+    TAT db "TAT", 9
+    WT db "WT", 10
+    avgTAT db "Average TAT=%.2f", 10
+    avgWT db "Average WT=%.2f", 0
+
+section .text
+    global _start
+
+_start:
+    ; Prompt user for number of processes
+    mov eax, 4
+    mov ebx, 1
+    mov edx, len_prompt_num_processes
+    mov ecx, prompt_num_processes
+    int 0x80
+
+    ; Read number of processes from user
+    mov eax, 3
+    mov ebx, 0
+    mov edx, 4
+    mov ecx, num
+    int 0x80
+
+    ; Allocate memory for list
+    mov eax, 8
+    mov ebx, 0
+    mov edx, num
+    int 0x80
+    mov dword [list], eax
+
+    ; Call inputProcessData function
+    push dword [num]
+    call inputProcessData
+    add esp, 4
+    mov dword [list], eax
+
+    ; Call sortFCFS function
+    push dword [list]
+    call sortFCFS
+    add esp, 4
+    mov dword [list], eax
+
+    ; Call computeAndDisplayFCFS function
+    push dword [list]
+    push dword [num]
+    call computeAndDisplayFCFS
+    add esp, 8
+
+    ; Exit program
+    mov eax, 1
+    xor ebx, ebx
+    int 0x80
+
+inputProcessData:
+    ; Function code here
+
+sortFCFS:
+    ; Function code here
+
+computeAndDisplayFCFS:
+    ; Function code here
+
+    ; Displaying results
+    mov eax, 4
+    mov ebx, 1
+    mov edx, len_CT
+    mov ecx, CT
+    int 0x80
+
+    mov eax, 4
+    mov ebx, 1
+    mov edx, len_TAT
+    mov ecx, TAT
+    int 0x80
+
+    mov eax, 4
+    mov ebx, 1
+    mov edx, len_WT
+    mov ecx, WT
+    int 0x80
+
+    mov eax, 4
+    mov ebx, 1
+    mov edx, len_avgTAT
+    mov ecx, avgTAT
+    int 0x80
+
+    mov eax, 4
+    mov ebx, 1
+    mov edx, len_avgWT
+    mov ecx, avgWT
+    int 0x80
+
+    ; Exit function
+    ret
+
